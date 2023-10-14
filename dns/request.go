@@ -1,28 +1,35 @@
 package dns
 
-import (
-	"math/rand"
+type Request struct {
+	Header
+	Queries []Query
+}
 
-	"github.com/wlynxg/nsend/pkg/xmap"
-)
-
-var cache xmap.Map[int16, struct{}]
-
-func NewRequest(domain string, queryType QueryType) *Request {
-	tid := int16(rand.Intn(1 << 16))
-	for cache.CompareAndDelete(tid, struct{}{}) {
-		tid = int16(rand.Intn(1 << 16))
+func MarshalRequest(r *Request) []byte {
+	if r == nil {
+		return nil
 	}
 
+	var (
+		buff   = make([]byte, BufferSize)
+		offset = 0
+	)
+
+	header := MarshalHeader(&r.Header)
+	copy(buff[:], header)
+	offset += len(header)
+
+	for _, query := range r.Queries {
+		data := MarshalQuery(&query)
+		copy(buff[offset:], data)
+		offset += len(data)
+	}
+	return buff[:offset]
+}
+
+func NewRequest(domain string, queryType QueryType) *Request {
 	req := &Request{
-		Header: Header{
-			TransactionID: tid,
-			Flags:         0x0100,
-			Questions:     1,
-			AnswerRRs:     0,
-			AuthorityRRs:  0,
-			AdditionalRRs: 0,
-		},
+		Header: DefaultHeader(),
 		Queries: []Query{{
 			Name:  domain,
 			Type:  queryType,
