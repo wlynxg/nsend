@@ -23,12 +23,14 @@ func UnmarshalResponse(buff []byte, response *Response) (int, error) {
 	}
 	offset += length
 
+	var domain string
 	for i := 0; i < int(response.Questions); i++ {
 		tmp := &Query{}
 		length, err = UnmarshalQuery(buff[offset:], tmp)
 		if err != nil {
 			return -1, err
 		}
+		domain = tmp.Name
 		offset += length
 		response.Queries = append(response.Queries, *tmp)
 	}
@@ -40,6 +42,10 @@ func UnmarshalResponse(buff []byte, response *Response) (int, error) {
 			return -1, err
 		}
 		offset += length
+		if tmp.Name == "0xc00c" {
+			tmp.Name = domain
+		}
+
 		response.Answers = append(response.Answers, *tmp)
 	}
 
