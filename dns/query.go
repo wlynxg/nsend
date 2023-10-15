@@ -44,15 +44,18 @@ func MarshalQuery(q *Query) []byte {
 	return buff[:offset]
 }
 
-func UnmarshalQuery(raw []byte) (*Query, error) {
+func UnmarshalQuery(raw []byte, query *Query) (int, error) {
 	if len(raw) < 6 {
-		return nil, errors.New("this is not a valid queries slice")
+		return -1, errors.New("this is not a valid queries data")
+	}
+
+	if query == nil {
+		return -1, errors.New("query cannot be nil")
 	}
 
 	var (
 		offset int
 		domain bytes.Buffer
-		query  *Query
 	)
 
 	for raw[offset] != 0 {
@@ -68,5 +71,5 @@ func UnmarshalQuery(raw []byte) (*Query, error) {
 	offset += 2
 	query.Class = ClassType(binary.BigEndian.Uint16(raw[offset : offset+2]))
 	offset += 2
-	return query, nil
+	return offset, nil
 }

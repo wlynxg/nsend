@@ -41,17 +41,20 @@ func MarshalHeader(h *Header) []byte {
 	return buff
 }
 
-func UnmarshalHeader(buff []byte) (*Header, error) {
+func UnmarshalHeader(buff []byte, header *Header) (int, error) {
 	if len(buff) < 12 {
-		return nil, errors.New("this is not a complete DNS packet header")
+		return -1, errors.New("this is not a complete DNS packet header")
 	}
 
-	header := &Header{}
+	if header == nil {
+		return -1, errors.New("header cannot be nil")
+	}
+
 	header.TransactionID = binary.BigEndian.Uint16(buff[0:2])
 	header.Flags = binary.BigEndian.Uint16(buff[2:4])
 	header.Questions = binary.BigEndian.Uint16(buff[4:6])
 	header.AnswerRRs = binary.BigEndian.Uint16(buff[6:8])
 	header.AuthorityRRs = binary.BigEndian.Uint16(buff[8:10])
 	header.AdditionalRRs = binary.BigEndian.Uint16(buff[10:12])
-	return header, nil
+	return 12, nil
 }

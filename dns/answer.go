@@ -3,6 +3,7 @@ package dns
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"net/netip"
 )
 
@@ -15,11 +16,14 @@ type Answer struct {
 	Address netip.Addr
 }
 
-func UnmarshalAnswer(buff []byte) (*Answer, error) {
+func UnmarshalAnswer(buff []byte, answer *Answer) (int, error) {
+	if answer == nil {
+		return -1, errors.New("answer cannot be nil")
+	}
+
 	var (
 		offset int
 		domain bytes.Buffer
-		answer = &Answer{}
 	)
 
 	// The dns reply enables message compression
@@ -51,5 +55,6 @@ func UnmarshalAnswer(buff []byte) (*Answer, error) {
 	if answer.Type == A && answer.Length == 4 {
 		answer.Address = netip.AddrFrom4([4]byte{buff[offset], buff[offset+1], buff[offset+2], buff[offset+3]})
 	}
-	return answer, nil
+	offset += answer.Length
+	return offset, nil
 }
