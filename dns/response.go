@@ -6,9 +6,6 @@ type Response struct {
 	Answers []Answer
 }
 
-type Answer interface{}
-
-func NewResponse(buff []byte) *Response {
-
-	return nil
+func UnmarshalResponse(buff []byte) (*Response, error) {
+	return nil, nil
 }
