@@ -1,7 +1,9 @@
 package dns
 
 import (
+	"bytes"
 	"encoding/binary"
+	"errors"
 	"strings"
 )
 
@@ -40,4 +42,31 @@ func MarshalQuery(q *Query) []byte {
 	offset += 2
 
 	return buff[:offset]
+}
+
+func UnmarshalQuery(raw []byte) (*Query, error) {
+	if len(raw) < 6 {
+		return nil, errors.New("this is not a valid queries slice")
+	}
+
+	var (
+		offset int
+		domain bytes.Buffer
+		query  *Query
+	)
+
+	for raw[offset] != 0 {
+		length := int(raw[offset])
+		offset++
+		domain.Write(raw[offset : offset+length])
+		domain.WriteByte('.')
+		offset += length
+	}
+	offset++
+	query.Name = domain.String()[:domain.Len()-1]
+	query.Type = QueryType(binary.BigEndian.Uint16(raw[offset : offset+2]))
+	offset += 2
+	query.Class = ClassType(binary.BigEndian.Uint16(raw[offset : offset+2]))
+	offset += 2
+	return query, nil
 }
