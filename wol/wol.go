@@ -3,6 +3,9 @@ package wol
 import (
 	"net"
 
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 	"github.com/pkg/errors"
 )
 
@@ -16,7 +19,8 @@ type Opt struct {
 }
 
 const (
-	DefaultPort = 9
+	DefaultPort                         = 9
+	EthernetTypeWOL layers.EthernetType = 0x0842
 )
 
 func Run(o Opt) error {
@@ -31,7 +35,9 @@ func Run(o Opt) error {
 	}
 
 	if o.Interface != nil {
-		//	TODO: use raw socket
+		if err := raw(o); err != nil {
+			return err
+		}
 	}
 
 	if o.IP == nil {
@@ -52,5 +58,32 @@ func Run(o Opt) error {
 		return err
 	}
 
+	return nil
+}
+
+func raw(o Opt) error {
+	handle, err := pcap.OpenLive(o.Interface.Name, 65536, true, pcap.BlockForever)
+	if err != nil {
+		return err
+	}
+	defer handle.Close()
+
+	ethernetLayer := &layers.Ethernet{
+		DstMAC:       o.DstMac,
+		SrcMAC:       o.Interface.HardwareAddr,
+		EthernetType: EthernetTypeWOL,
+	}
+
+	buffer := gopacket.NewSerializeBuffer()
+	err = gopacket.SerializeLayers(buffer, gopacket.SerializeOptions{}, ethernetLayer,
+		gopacket.Payload(MarshalRequest(NewRequest(o.DstMac, o.Password))))
+	if err != nil {
+		return err
+	}
+
+	err = handle.WritePacketData(buffer.Bytes())
+	if err != nil {
+		return err
+	}
 	return nil
 }
