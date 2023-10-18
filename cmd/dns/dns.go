@@ -1,4 +1,4 @@
-package cmd
+package dns
 
 import (
 	"github.com/fatih/color"
@@ -8,8 +8,8 @@ import (
 	"github.com/wlynxg/nsend/dns"
 )
 
-// dnsCmd represents the dns command
-var dnsCmd = &cobra.Command{
+// Cmd represents the dns command
+var Cmd = &cobra.Command{
 	Use:   "dns",
 	Short: "dns domain name query",
 	Long:  `Query the resolution address of the domain name, you can specify the type and dns server`,
@@ -59,7 +59,6 @@ var dnsCmd = &cobra.Command{
 }
 
 func init() {
-	Root.AddCommand(dnsCmd)
-	dnsCmd.Flags().StringP("server", "s", "", "Specify dns server, format: protocol:[address]:port")
-	dnsCmd.Flags().StringP("type", "t", "A", "Specify the domain name record type, the default is A record")
+	Cmd.Flags().StringP("server", "s", "", "Specify dns server, format: protocol:[address]:port")
+	Cmd.Flags().StringP("type", "t", "A", "Specify the domain name record type, the default is A record")
 }

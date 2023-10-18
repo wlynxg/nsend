@@ -1,4 +1,4 @@
-package cmd
+package wol
 
 import (
 	"fmt"
@@ -10,8 +10,8 @@ import (
 	"github.com/wlynxg/nsend/wol"
 )
 
-// dnsCmd represents the dns command
-var wolCmd = &cobra.Command{
+// Cmd represents the wol command
+var Cmd = &cobra.Command{
 	Use:   "wol",
 	Short: "wol wakes up the LAN host",
 	Long: `Send a wol request to wake up the host in the LAN. You can choose to use udp method or raw socket method.
@@ -82,9 +82,8 @@ When the interface is specified, the raw socket method is used; if not specified
 }
 
 func init() {
-	Root.AddCommand(wolCmd)
-	wolCmd.Flags().StringP("interface", "i", "", "network interface to use to send Wake-on-LAN magic packet")
-	wolCmd.Flags().StringP("password", "p", "", "optional password for Wake-on-LAN magic packet")
-	wolCmd.Flags().String("ip", "p", "network address for Wake-on-LAN magic packet")
-	wolCmd.Flags().Int("port", 9, "network port for Wake-on-LAN magic packet")
+	Cmd.Flags().StringP("interface", "i", "", "network interface to use to send Wake-on-LAN magic packet")
+	Cmd.Flags().StringP("password", "p", "", "optional password for Wake-on-LAN magic packet")
+	Cmd.Flags().String("ip", "p", "network address for Wake-on-LAN magic packet")
+	Cmd.Flags().Int("port", 9, "network port for Wake-on-LAN magic packet")
 }

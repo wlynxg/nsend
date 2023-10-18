@@ -1,4 +1,4 @@
-package cmd
+package ping
 
 import (
 	"log"
@@ -10,11 +10,11 @@ import (
 )
 
 var (
-	PingCount int
+	Count int
 )
 
-// pingCmd represents the dns command
-var pingCmd = &cobra.Command{
+// Cmd represents the dns command
+var Cmd = &cobra.Command{
 	Use:   "ping",
 	Short: "send ICMP ECHO_REQUEST to network hosts",
 	Long:  `ping uses the ICMP protocol's mandatory ECHO_REQUEST datagram to elicit an ICMP ECHO_RESPONSE from a host or gateway.`,
@@ -25,8 +25,8 @@ var pingCmd = &cobra.Command{
 		}
 
 		err := icmp.Run(icmp.Opt{
-			Dst:   &net.IPAddr{IP: dst},
-			Count: PingCount,
+			Dst:   net.IPAddr{IP: dst},
+			Count: Count,
 		})
 		if err != nil {
 			log.Fatalln(err)
@@ -36,6 +36,5 @@ var pingCmd = &cobra.Command{
 }
 
 func init() {
-	Root.AddCommand(pingCmd)
-	pingCmd.Flags().IntVarP(&PingCount, "count", "c", math.MaxInt, "stop after <count> replies")
+	Cmd.Flags().IntVarP(&Count, "count", "c", math.MaxInt, "stop after <count> replies")
 }
