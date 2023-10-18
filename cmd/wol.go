@@ -82,9 +82,9 @@ When the interface is specified, the raw socket method is used; if not specified
 }
 
 func init() {
-	Root.AddCommand(dnsCmd)
+	Root.AddCommand(wolCmd)
 	wolCmd.Flags().StringP("interface", "i", "", "network interface to use to send Wake-on-LAN magic packet")
 	wolCmd.Flags().StringP("password", "p", "", "optional password for Wake-on-LAN magic packet")
 	wolCmd.Flags().String("ip", "p", "network address for Wake-on-LAN magic packet")
-	wolCmd.Flags().String("port", "9", "network port for Wake-on-LAN magic packet")
+	wolCmd.Flags().Int("port", 9, "network port for Wake-on-LAN magic packet")
 }
