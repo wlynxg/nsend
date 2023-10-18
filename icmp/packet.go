@@ -13,11 +13,16 @@ const (
 	EchoRequest PacketType = 8
 )
 
+const (
+	HeaderSize = 8
+)
+
 type Packet struct {
 	Type       PacketType
 	Code       byte
 	Checksum   uint16
 	Identifier uint16
+	Sequence   uint16
 	Data       []byte
 }
 
@@ -26,13 +31,14 @@ func MarshalPacket(p *Packet) []byte {
 		return nil
 	}
 
-	buff := make([]byte, 512)
+	buff := make([]byte, HeaderSize+len(p.Data))
 	buff[0] = byte(p.Type)
 	buff[1] = p.Code
-	binary.BigEndian.PutUint16(buff[2:], p.Checksum)
-	binary.BigEndian.PutUint16(buff[4:], p.Identifier)
-	copy(buff[6:], p.Data)
-	return buff[6+len(p.Data):]
+	binary.BigEndian.PutUint16(buff[2:4], p.Identifier)
+	binary.BigEndian.PutUint16(buff[4:6], p.Checksum)
+	binary.BigEndian.PutUint16(buff[6:HeaderSize], p.Sequence)
+	copy(buff[HeaderSize:], p.Data)
+	return buff
 }
 
 func UnmarshalPacket(buff []byte, p *Packet) (int, error) {
@@ -40,7 +46,7 @@ func UnmarshalPacket(buff []byte, p *Packet) (int, error) {
 		return -1, errors.New("response cannot be nil")
 	}
 
-	if len(buff) < 6 {
+	if len(buff) < HeaderSize {
 		return -1, errors.New("not a correct icmp package")
 	}
 
@@ -48,9 +54,10 @@ func UnmarshalPacket(buff []byte, p *Packet) (int, error) {
 	p.Code = buff[1]
 	p.Checksum = binary.BigEndian.Uint16(buff[2:4])
 	p.Identifier = binary.BigEndian.Uint16(buff[4:6])
-	if len(buff) > 6 {
-		data := make([]byte, len(buff)-6)
-		copy(data, buff[6:])
+	p.Sequence = binary.BigEndian.Uint16(buff[6:HeaderSize])
+	if len(buff) > HeaderSize {
+		data := make([]byte, len(buff)-HeaderSize)
+		copy(data, buff[HeaderSize:])
 		p.Data = data
 	}
 
@@ -63,6 +70,7 @@ func NewRequest(data []byte) *Packet {
 		Code:       0,
 		Checksum:   0,
 		Identifier: 0,
+		Sequence:   0,
 		Data:       nil,
 	}
 
@@ -71,8 +79,9 @@ func NewRequest(data []byte) *Packet {
 	buff[1] = p.Code
 	binary.BigEndian.PutUint16(buff[2:], p.Checksum)
 	binary.BigEndian.PutUint16(buff[4:], p.Identifier)
-	copy(buff[6:], data)
-	p.Checksum = checksum(buff[6+len(data):])
+	binary.BigEndian.PutUint16(buff[6:HeaderSize], p.Sequence)
+	copy(buff[HeaderSize:], data)
+	p.Checksum = checksum(buff[:HeaderSize+len(data)])
 	return p
 }
 

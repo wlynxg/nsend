@@ -8,13 +8,13 @@ import (
 )
 
 type Opt struct {
-	Dst   net.Addr
+	Dst   net.IPAddr
 	Count int
 	Data  []byte
 }
 
 func Run(o Opt) error {
-	listen, err := net.ListenPacket("ip:icmp", "")
+	client, err := net.DialIP("ip4:icmp", nil, &o.Dst)
 	if err != nil {
 		return err
 	}
@@ -29,17 +29,17 @@ func Run(o Opt) error {
 
 	for i := 0; i < o.Count; i++ {
 		start = time.Now()
-		_, err = listen.WriteTo(MarshalPacket(req), o.Dst)
+		_, err = client.Write(MarshalPacket(req))
 		if err != nil {
 			return err
 		}
 
-		err = listen.SetReadDeadline(time.Now().Add(5 * time.Second))
+		err = client.SetReadDeadline(time.Now().Add(5 * time.Second))
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		n, addr, err := listen.ReadFrom(buff)
+		n, addr, err := client.ReadFrom(buff)
 		if err != nil {
 			return err
 		}
@@ -56,6 +56,7 @@ func Run(o Opt) error {
 				fmt.Printf("reply from %s: time=%v\n", addr.String(), duration)
 			}
 		}
+		time.Sleep(1 * time.Second)
 	}
 	return nil
 }
