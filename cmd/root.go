@@ -12,13 +12,9 @@ import (
 // Root represents the base command when called without any subcommands
 var Root = &cobra.Command{
 	Use:   "nsend",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Versatile command-line tool for sending various network packets.",
+	Long: `This command line tool is a feature-rich network packet launcher 
+that is capable of sending various types of network packets.`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
