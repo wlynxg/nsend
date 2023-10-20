@@ -3,13 +3,28 @@ package stun
 import (
 	"encoding/binary"
 	"net/netip"
+
+	"github.com/pkg/errors"
 )
 
-func parseResponsePacket(buff []byte) *Response {
-	var (
-		resp   = &Response{Attributes: map[AttributeType]Attribute{}}
-		offset = 0
-	)
+type Response struct {
+	MessageType   int
+	MessageLength int
+	MagicCookie   uint32
+	TransactionID TxID
+	Attributes    map[AttributeType]Attribute
+}
+
+func UnmarshalResponse(buff []byte, resp *Response) (int, error) {
+	if len(buff) < 20 {
+		return 0, errors.New("invalid stun response packet")
+	}
+
+	var offset = 0
+
+	if resp.Attributes == nil {
+		resp.Attributes = make(map[AttributeType]Attribute)
+	}
 
 	// set the MessageType
 	if binary.BigEndian.Uint16(buff[offset:offset+2]) == BindingResponse {
@@ -60,5 +75,5 @@ func parseResponsePacket(buff []byte) *Response {
 		resp.Attributes[attribute.Type] = attribute
 	}
 
-	return resp
+	return offset, nil
 }

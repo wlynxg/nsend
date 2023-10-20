@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/wlynxg/nsend/cmd/dns"
 	"github.com/wlynxg/nsend/cmd/ping"
+	"github.com/wlynxg/nsend/cmd/stun"
 	"github.com/wlynxg/nsend/cmd/wol"
 )
 
@@ -31,4 +32,5 @@ func init() {
 	Root.AddCommand(dns.Cmd)
 	Root.AddCommand(wol.Cmd)
 	Root.AddCommand(ping.Cmd)
+	Root.AddCommand(stun.Cmd)
 }

@@ -14,14 +14,6 @@ type RequestPacket struct {
 	TransactionID [12]byte
 }
 
-type Response struct {
-	MessageType   int
-	MessageLength int
-	MagicCookie   uint32
-	TransactionID TxID
-	Attributes    map[AttributeType]Attribute
-}
-
 type TxID []byte
 
 type AttributeType uint16
@@ -193,10 +185,11 @@ type ActionAttribute struct {
 }
 
 const (
-	DefaultSTUNPort = 3478
-	BindingRequest  = 0x0001
-	BindingResponse = 0x0101
-	MagicCookie     = 0x2112A442
-	AttributeSize   = 12
-	ReadTimeout     = 10 * time.Second
+	DefaultSTUNPort    = 3478
+	BindingRequest     = 0x0001
+	BindingResponse    = 0x0101
+	MagicCookie        = 0x2112A442
+	AttributeSize      = 12
+	ReadTimeout        = 10 * time.Second
+	ResponseHeaderSize = 20
 )

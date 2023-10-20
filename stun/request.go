@@ -1,7 +1,9 @@
 package stun
 
 import (
+	"crypto/rand"
 	"encoding/binary"
+	"io"
 )
 
 type Request struct {
@@ -27,7 +29,7 @@ func MarshalRequest(req *Request) []byte {
 	binary.BigEndian.PutUint16(buff[offset:offset+2], req.MessageLength)
 	offset += 2
 	binary.BigEndian.PutUint32(buff[offset:offset+4], req.MagicCookie)
-	offset += 2
+	offset += 4
 	copy(buff[offset:offset+12], req.TransactionID[:])
 	offset += 12
 	if req.Attribute != nil {
@@ -78,4 +80,10 @@ func NewRequest(action ChangeRequestAction) *Request {
 		}
 	}
 	return req
+}
+
+func NewTxID() TxID {
+	id := make(TxID, 12)
+	io.ReadFull(rand.Reader, id)
+	return id
 }
