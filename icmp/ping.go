@@ -8,9 +8,10 @@ import (
 )
 
 type Opt struct {
-	Dst   net.IPAddr
-	Count int
-	Data  []byte
+	DstRaw string
+	Dst    net.IPAddr
+	Count  int
+	Data   []byte
 }
 
 func Run(o Opt) error {
@@ -20,15 +21,19 @@ func Run(o Opt) error {
 	}
 
 	var (
-		req      = NewRequest(o.Data)
+		req  = NewRequest(o.Data)
+		buff = make([]byte, 1460)
+
 		resp     Packet
-		buff     = make([]byte, 1500)
 		start    time.Time
 		duration time.Duration
 	)
 
+	fmt.Printf("PING %s (%s) %d bytes of data.", o.DstRaw, o.Dst.String(), len(o.Data))
 	for i := 0; i < o.Count; i++ {
 		start = time.Now()
+
+		req.Sequence++
 		_, err = client.Write(MarshalPacket(req))
 		if err != nil {
 			return err
@@ -53,7 +58,7 @@ func Run(o Opt) error {
 		switch resp.Type {
 		case EchoReply:
 			if addr.String() == o.Dst.String() {
-				fmt.Printf("reply from %s: time=%v\n", addr.String(), duration)
+				fmt.Printf("from %s (%v): icmp_seq=%d time=%v\t\n", o.DstRaw, addr.String(), req.Sequence, duration)
 			}
 		}
 		time.Sleep(1 * time.Second)

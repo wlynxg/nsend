@@ -35,9 +35,10 @@ func MarshalPacket(p *Packet) []byte {
 	buff[0] = byte(p.Type)
 	buff[1] = p.Code
 	binary.BigEndian.PutUint16(buff[2:4], p.Identifier)
-	binary.BigEndian.PutUint16(buff[4:6], p.Checksum)
 	binary.BigEndian.PutUint16(buff[6:HeaderSize], p.Sequence)
 	copy(buff[HeaderSize:], p.Data)
+	p.Checksum = checksum(buff)
+	binary.BigEndian.PutUint16(buff[4:6], p.Checksum)
 	return buff
 }
 
@@ -71,17 +72,9 @@ func NewRequest(data []byte) *Packet {
 		Checksum:   0,
 		Identifier: 0,
 		Sequence:   0,
-		Data:       nil,
+		Data:       make([]byte, len(data)),
 	}
-
-	buff := make([]byte, 512)
-	buff[0] = byte(p.Type)
-	buff[1] = p.Code
-	binary.BigEndian.PutUint16(buff[2:], p.Checksum)
-	binary.BigEndian.PutUint16(buff[4:], p.Identifier)
-	binary.BigEndian.PutUint16(buff[6:HeaderSize], p.Sequence)
-	copy(buff[HeaderSize:], data)
-	p.Checksum = checksum(buff[:HeaderSize+len(data)])
+	copy(p.Data, data)
 	return p
 }
 

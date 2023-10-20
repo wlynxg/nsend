@@ -25,8 +25,9 @@ var Cmd = &cobra.Command{
 		}
 
 		err = icmp.Run(icmp.Opt{
-			Dst:   net.IPAddr{IP: dst.IP},
-			Count: Count,
+			DstRaw: args[0],
+			Dst:    net.IPAddr{IP: dst.IP},
+			Count:  Count,
 		})
 		if err != nil {
 			log.Fatalln(err)
