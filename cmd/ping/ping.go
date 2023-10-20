@@ -15,17 +15,17 @@ var (
 
 // Cmd represents the dns command
 var Cmd = &cobra.Command{
-	Use:   "ping",
+	Use:   "ping [host]",
 	Short: "send ICMP ECHO_REQUEST to network hosts",
 	Long:  `ping uses the ICMP protocol's mandatory ECHO_REQUEST datagram to elicit an ICMP ECHO_RESPONSE from a host or gateway.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		dst := net.ParseIP(args[0])
-		if dst == nil {
-			log.Fatalf("invalid addr: %s", args[0])
+		dst, err := net.ResolveIPAddr("ip", args[0])
+		if err != nil {
+			log.Fatalf("invalid addr: %s %v", args[0], err)
 		}
 
-		err := icmp.Run(icmp.Opt{
-			Dst:   net.IPAddr{IP: dst},
+		err = icmp.Run(icmp.Opt{
+			Dst:   net.IPAddr{IP: dst.IP},
 			Count: Count,
 		})
 		if err != nil {
