@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	port uint16
+	port   uint16
+	detect bool
 )
 
 // Cmd represents the dns command
@@ -25,7 +26,8 @@ var Cmd = &cobra.Command{
 		}
 
 		err = stun.Run(stun.Opt{
-			Server: netip.AddrPortFrom(netip.MustParseAddr(dst.String()), port),
+			Server:        netip.AddrPortFrom(netip.MustParseAddr(dst.String()), port),
+			NatTypeDetect: detect,
 		})
 		if err != nil {
 			log.Fatalln(err)
@@ -36,4 +38,5 @@ var Cmd = &cobra.Command{
 
 func init() {
 	Cmd.Flags().Uint16VarP(&port, "port", "p", stun.DefaultSTUNPort, "stun server port")
+	Cmd.Flags().BoolVarP(&detect, "detect", "d", false, "detect NAT type")
 }

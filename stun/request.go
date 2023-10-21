@@ -37,7 +37,7 @@ func MarshalRequest(req *Request) []byte {
 		offset += 2
 		binary.BigEndian.PutUint16(buff[offset:offset+2], req.Attribute.Length)
 		offset += 2
-		binary.BigEndian.PutUint32(buff[offset:offset+2], uint32(req.Attribute.Action))
+		binary.BigEndian.PutUint32(buff[offset:offset+4], uint32(req.Attribute.Action))
 		offset += 4
 	}
 
