@@ -1,7 +1,9 @@
 package stun
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"net"
 	"net/netip"
 	"time"
@@ -54,28 +56,28 @@ func Run(o Opt) error {
 
 func natTypeDetect(udp *net.UDPConn, dst *net.UDPAddr) error {
 	var (
-		buff                       = make([]byte, 1460)
 		resp                       = &stun.Response{}
+		req                        = &stun.Request{}
 		other, addr1, addr2, addr3 netip.AddrPort
 		filter                     stun.FilteringBehavior
 		mapped                     stun.MappingBehavior
 	)
 
 	// Step1
-	_, err := udp.WriteTo(stun.MarshalRequest(stun.NewRequest(stun.NoAction)), dst)
+	req = stun.NewRequest(stun.NoAction)
+	_, err := udp.WriteTo(stun.MarshalRequest(req), dst)
 	if err != nil {
 		return err
 	}
 
-	udp.SetReadDeadline(time.Now().Add(timeout))
-	n, err := udp.Read(buff)
+	success, err := waitResponse(udp, req.TransactionID[:], resp)
 	if err != nil {
 		return err
 	}
 
-	_, err = stun.UnmarshalResponse(buff[:n], resp)
-	if err != nil {
-		return err
+	if !success {
+		log.Println(stun.UDPBlock)
+		return nil
 	}
 
 	if v, ok := resp.Attributes[stun.MappedAddress]; ok {
@@ -89,30 +91,38 @@ func natTypeDetect(udp *net.UDPConn, dst *net.UDPAddr) error {
 	}
 
 	// Step2
-	_, err = udp.WriteTo(stun.MarshalRequest(stun.NewRequest(stun.ChangeIPAndPort)), dst)
+	req = stun.NewRequest(stun.ChangeIPAndPort)
+	_, err = udp.WriteTo(stun.MarshalRequest(req), dst)
 	if err != nil {
 		return err
 	}
 
-	udp.SetReadDeadline(time.Now().Add(timeout))
-	n, err = udp.Read(buff)
-	if err == nil {
+	success, err = waitResponse(udp, req.TransactionID[:], resp)
+	if err != nil {
+		return err
+	}
+
+	if success {
 		filter = stun.EndpointIndependentFiltering
 		goto step4
 	}
 
 	// Step3
-	_, err = udp.WriteTo(stun.MarshalRequest(stun.NewRequest(stun.ChangePort)), dst)
+	req = stun.NewRequest(stun.ChangePort)
+	_, err = udp.WriteTo(stun.MarshalRequest(req), dst)
 	if err != nil {
 		return err
 	}
 
-	udp.SetReadDeadline(time.Now().Add(timeout))
-	n, err = udp.Read(buff)
+	success, err = waitResponse(udp, req.TransactionID[:], resp)
 	if err != nil {
-		filter = stun.AddressAndPortDependentFiltering
-	} else {
+		return err
+	}
+
+	if success {
 		filter = stun.AddressDependentFiltering
+	} else {
+		filter = stun.AddressAndPortDependentFiltering
 	}
 
 step4:
@@ -122,16 +132,21 @@ step4:
 	}
 
 	// Step4
-	_, err = udp.WriteTo(stun.MarshalRequest(stun.NewRequest(stun.NoAction)),
+	req = stun.NewRequest(stun.NoAction)
+	_, err = udp.WriteTo(stun.MarshalRequest(req),
 		net.UDPAddrFromAddrPort(netip.AddrPortFrom(other.Addr(), uint16(dst.Port))))
 	if err != nil {
 		return err
 	}
 
-	udp.SetReadDeadline(time.Now().Add(timeout))
-	n, err = udp.Read(buff)
+	success, err = waitResponse(udp, req.TransactionID[:], resp)
 	if err != nil {
 		return err
+	}
+
+	if success {
+		log.Println(stun.UDPBlock)
+		return nil
 	}
 
 	if v, ok := resp.Attributes[stun.MappedAddress]; ok {
@@ -143,13 +158,13 @@ step4:
 	}
 
 	// Step5
-	_, err = udp.WriteTo(stun.MarshalRequest(stun.NewRequest(stun.NoAction)), net.UDPAddrFromAddrPort(other))
+	req = stun.NewRequest(stun.NoAction)
+	_, err = udp.WriteTo(stun.MarshalRequest(req), net.UDPAddrFromAddrPort(other))
 	if err != nil {
 		return err
 	}
 
-	udp.SetReadDeadline(time.Now().Add(timeout))
-	n, err = udp.Read(buff)
+	success, err = waitResponse(udp, req.TransactionID[:], resp)
 	if err != nil {
 		return err
 	}
@@ -165,8 +180,32 @@ step4:
 	}
 
 ret:
-
 	fmt.Println(mapped)
 	fmt.Println(filter)
 	return nil
+}
+
+// success, err
+func waitResponse(udp *net.UDPConn, txid stun.TxID, resp *stun.Response) (bool, error) {
+	buff := make([]byte, 1460)
+	for {
+		udp.SetReadDeadline(time.Now().Add(timeout))
+		n, err := udp.Read(buff)
+		if err != nil {
+			netErr, ok := err.(*net.OpError)
+			if ok && netErr.Timeout() {
+				return false, nil
+			}
+			return false, err
+		}
+
+		_, err = stun.UnmarshalResponse(buff[:n], resp)
+		if err != nil {
+			return false, err
+		}
+
+		if bytes.Equal(resp.TransactionID, txid) {
+			return true, nil
+		}
+	}
 }
