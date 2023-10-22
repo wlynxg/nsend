@@ -1,42 +1,172 @@
 package stun
 
 import (
-	"log"
+	"fmt"
 	"net"
 	"net/netip"
+	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/wlynxg/nsend/stun"
 )
 
 var (
-	port   uint16
-	detect bool
+	timeout = 5 * time.Second
 )
 
-// Cmd represents the dns command
-var Cmd = &cobra.Command{
-	Use:   "stun <STUN server>",
-	Short: "send STUN request to network hosts",
-	Long:  `stun can send STUN request to the specified host。`,
-	Run: func(cmd *cobra.Command, args []string) {
-		dst, err := net.ResolveIPAddr("ip", args[0])
-		if err != nil {
-			log.Fatalf("invalid addr: %s %v", args[0], err)
-		}
-
-		err = stun.Run(stun.Opt{
-			Server:        netip.AddrPortFrom(netip.MustParseAddr(dst.String()), port),
-			NatTypeDetect: detect,
-		})
-		if err != nil {
-			log.Fatalln(err)
-		}
-	},
-	Args: cobra.ExactArgs(1),
+type Opt struct {
+	Server        netip.AddrPort
+	NatTypeDetect bool
 }
 
-func init() {
-	Cmd.Flags().Uint16VarP(&port, "port", "p", stun.DefaultSTUNPort, "stun server port")
-	Cmd.Flags().BoolVarP(&detect, "detect", "d", false, "detect NAT type")
+func Run(o Opt) error {
+	udp, err := net.ListenUDP("udp", nil)
+	if err != nil {
+		return err
+	}
+
+	if o.NatTypeDetect {
+		return natTypeDetect(udp, net.UDPAddrFromAddrPort(o.Server))
+	}
+
+	action := stun.NoAction
+	_, err = udp.WriteTo(stun.MarshalRequest(stun.NewRequest(action)), net.UDPAddrFromAddrPort(o.Server))
+	if err != nil {
+		return err
+	}
+
+	buff := make([]byte, 1460)
+	n, addr, err := udp.ReadFrom(buff)
+	if err != nil {
+		return err
+	}
+
+	resp := &stun.Response{}
+	_, err = stun.UnmarshalResponse(buff[:n], resp)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Recv STUN response from: %v\n", addr)
+	ret := resp.Attributes[stun.MappedAddress]
+	fmt.Printf("External Address: %v:%d\n", ret.IP, ret.Port)
+	return nil
+}
+
+func natTypeDetect(udp *net.UDPConn, dst *net.UDPAddr) error {
+	var (
+		buff                       = make([]byte, 1460)
+		resp                       = &stun.Response{}
+		other, addr1, addr2, addr3 netip.AddrPort
+		filter                     stun.FilteringBehavior
+		mapped                     stun.MappingBehavior
+	)
+
+	// Step1
+	_, err := udp.WriteTo(stun.MarshalRequest(stun.NewRequest(stun.NoAction)), dst)
+	if err != nil {
+		return err
+	}
+
+	udp.SetReadDeadline(time.Now().Add(timeout))
+	n, err := udp.Read(buff)
+	if err != nil {
+		return err
+	}
+
+	_, err = stun.UnmarshalResponse(buff[:n], resp)
+	if err != nil {
+		return err
+	}
+
+	if v, ok := resp.Attributes[stun.MappedAddress]; ok {
+		addr1 = netip.AddrPortFrom(v.IP, uint16(v.Port))
+	}
+
+	if v, ok := resp.Attributes[stun.OtherAddress]; ok {
+		other = netip.AddrPortFrom(v.IP, uint16(v.Port))
+	} else if v, ok = resp.Attributes[stun.ChangedAddress]; ok {
+		other = netip.AddrPortFrom(v.IP, uint16(v.Port))
+	}
+
+	// Step2
+	_, err = udp.WriteTo(stun.MarshalRequest(stun.NewRequest(stun.ChangeIPAndPort)), dst)
+	if err != nil {
+		return err
+	}
+
+	udp.SetReadDeadline(time.Now().Add(timeout))
+	n, err = udp.Read(buff)
+	if err == nil {
+		filter = stun.EndpointIndependentFiltering
+		goto step4
+	}
+
+	// Step3
+	_, err = udp.WriteTo(stun.MarshalRequest(stun.NewRequest(stun.ChangePort)), dst)
+	if err != nil {
+		return err
+	}
+
+	udp.SetReadDeadline(time.Now().Add(timeout))
+	n, err = udp.Read(buff)
+	if err != nil {
+		filter = stun.AddressAndPortDependentFiltering
+	} else {
+		filter = stun.AddressDependentFiltering
+	}
+
+step4:
+	if addr1 == udp.LocalAddr().(*net.UDPAddr).AddrPort() {
+		mapped = stun.NoMapping
+		goto ret
+	}
+
+	// Step4
+	_, err = udp.WriteTo(stun.MarshalRequest(stun.NewRequest(stun.NoAction)),
+		net.UDPAddrFromAddrPort(netip.AddrPortFrom(other.Addr(), uint16(dst.Port))))
+	if err != nil {
+		return err
+	}
+
+	udp.SetReadDeadline(time.Now().Add(timeout))
+	n, err = udp.Read(buff)
+	if err != nil {
+		return err
+	}
+
+	if v, ok := resp.Attributes[stun.MappedAddress]; ok {
+		addr2 = netip.AddrPortFrom(v.IP, uint16(v.Port))
+	}
+
+	if addr1 == addr2 {
+		mapped = stun.EndpointIndependentMapping
+	}
+
+	// Step5
+	_, err = udp.WriteTo(stun.MarshalRequest(stun.NewRequest(stun.NoAction)), net.UDPAddrFromAddrPort(other))
+	if err != nil {
+		return err
+	}
+
+	udp.SetReadDeadline(time.Now().Add(timeout))
+	n, err = udp.Read(buff)
+	if err != nil {
+		return err
+	}
+
+	if v, ok := resp.Attributes[stun.MappedAddress]; ok {
+		addr3 = netip.AddrPortFrom(v.IP, uint16(v.Port))
+	}
+
+	if addr2 == addr3 {
+		mapped = stun.AddressDependentMapping
+	} else {
+		mapped = stun.AddressAndPortDependentMapping
+	}
+
+ret:
+
+	fmt.Println(mapped)
+	fmt.Println(filter)
+	return nil
 }
