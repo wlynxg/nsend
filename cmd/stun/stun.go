@@ -2,6 +2,7 @@ package stun
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -144,7 +145,7 @@ step4:
 		return err
 	}
 
-	if success {
+	if !success {
 		log.Println(stun.UDPBlock)
 		return nil
 	}
@@ -155,6 +156,7 @@ step4:
 
 	if addr1 == addr2 {
 		mapped = stun.EndpointIndependentMapping
+		goto ret
 	}
 
 	// Step5
@@ -192,7 +194,8 @@ func waitResponse(udp *net.UDPConn, txid stun.TxID, resp *stun.Response) (bool, 
 		udp.SetReadDeadline(time.Now().Add(timeout))
 		n, err := udp.Read(buff)
 		if err != nil {
-			netErr, ok := err.(*net.OpError)
+			var netErr *net.OpError
+			ok := errors.As(err, &netErr)
 			if ok && netErr.Timeout() {
 				return false, nil
 			}
