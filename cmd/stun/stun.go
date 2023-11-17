@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/wlynxg/nsend/stun"
 )
 
@@ -38,7 +39,7 @@ func Run(o Opt) error {
 	}
 
 	buff := make([]byte, 1460)
-	n, addr, err := udp.ReadFrom(buff)
+	n, err := udp.Read(buff)
 	if err != nil {
 		return err
 	}
@@ -49,9 +50,8 @@ func Run(o Opt) error {
 		return err
 	}
 
-	fmt.Printf("Recv STUN response from: %v\n", addr)
 	ret := resp.Attributes[stun.MappedAddress]
-	fmt.Printf("External Address: %v:%d\n", ret.IP, ret.Port)
+	fmt.Printf("External Address: %s\n", color.GreenString("%v:%d", ret.IP, ret.Port))
 	return nil
 }
 
@@ -77,7 +77,7 @@ func natTypeDetect(udp *net.UDPConn, dst *net.UDPAddr) error {
 	}
 
 	if !success {
-		log.Println(stun.UDPBlock)
+		fmt.Println("Result: ", color.RedString(stun.UDPBlock.String()))
 		return nil
 	}
 
@@ -182,8 +182,10 @@ step4:
 	}
 
 ret:
-	fmt.Println(mapped)
-	fmt.Println(filter)
+	fmt.Println("External Address:             ", color.GreenString(addr1.String()))
+	fmt.Println("Mapping behavior (RFC5780):   ", color.GreenString(mapped.String()))
+	fmt.Println("Filtering behavior (RFC5780): ", color.GreenString(filter.String()))
+	fmt.Println("NAT Type (RFC3489):           ", color.GreenString(stun.Convert(mapped, filter).String()))
 	return nil
 }
 
