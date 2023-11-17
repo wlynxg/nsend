@@ -23,10 +23,24 @@ const (
 	ChangeRequest    AttributeType = 0x0003
 	SourceAddress    AttributeType = 0x0004
 	ChangedAddress   AttributeType = 0x0005
+	Software         AttributeType = 0x8022
 	ResponseOrigin   AttributeType = 0x802b
 	OtherAddress     AttributeType = 0x802c
 	XorMappedAddress AttributeType = 0x0020
 )
+
+func (t AttributeType) IsComprehensionRequired() bool {
+	switch t {
+	case MappedAddress:
+		return true
+	default:
+		return false
+	}
+}
+
+func (t AttributeType) IsComprehensionOptional() bool {
+	return !t.IsComprehensionRequired()
+}
 
 func (t AttributeType) String() string {
 	switch t {
@@ -189,7 +203,15 @@ const (
 	BindingRequest     = 0x0001
 	BindingResponse    = 0x0101
 	MagicCookie        = 0x2112A442
-	AttributeSize      = 12
 	ReadTimeout        = 10 * time.Second
 	ResponseHeaderSize = 20
 )
+
+// Padding
+// STUN aligns attributes on 32-bit boundaries, attributes whose content
+// is not a multiple of 4 bytes are padded with 1, 2, or 3 bytes of
+// padding so that its value contains a multiple of 4 bytes.  The
+// padding bits are ignored, and may be any value.
+//
+// https://tools.ietf.org/html/rfc5389#section-15
+const Padding = 4

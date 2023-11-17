@@ -45,7 +45,8 @@ func UnmarshalResponse(buff []byte, resp *Response) (int, error) {
 	copy(resp.TransactionID, buff[offset:offset+12])
 	offset += 12
 
-	for i := 0; i < resp.MessageLength; i += AttributeSize {
+	old := offset
+	for offset-old < resp.MessageLength {
 		attribute := Attribute{}
 
 		// set AttributeType
@@ -55,6 +56,12 @@ func UnmarshalResponse(buff []byte, resp *Response) (int, error) {
 		// set AttributeLength
 		attribute.Length = int(binary.BigEndian.Uint16(buff[offset : offset+2]))
 		offset += 2
+
+		// don't parse comprehension-option
+		if attribute.Type.IsComprehensionOptional() {
+			offset += attribute.Length
+			offset += attribute.Length % Padding
+		}
 
 		// set AttributeReserved
 		attribute.Reserved = int(buff[offset])
